@@ -1,0 +1,6 @@
+# Serving backends are selected via environment variables:
+#   LAHJA_MOCK_MODEL=1                       → mock backend (CI / dev)
+#   LAHJA_GGUF_PATH=outputs/model-q4_k_m.gguf → llama-cpp-python
+#   LAHJA_MODEL_DIR=outputs/merged           → HF transformers
+host: 0.0.0.0
+port: 8000

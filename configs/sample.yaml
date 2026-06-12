@@ -1,0 +1,30 @@
+# Smoke-run config: tiny model + bundled sample data. CPU-friendly.
+seed: 42
+
+model:
+  base: Qwen/Qwen2.5-0.5B-Instruct
+  load_in_4bit: false
+
+data:
+  train_file: data/sample/sample_train.jsonl
+  prepared_dir: outputs/prepared
+  eval_fraction: 0.2
+  require_arabic: true
+
+lora: { r: 8, alpha: 16, dropout: 0.05 }
+
+train:
+  epochs: 1
+  max_steps: 5
+  batch_size: 1
+  grad_accum: 1
+  lr: 2e-4
+  max_seq_len: 512
+  eval_steps: 5
+  save_steps: 5
+  output_dir: outputs/adapters
+  merged_dir: outputs/merged
+  report_to: none
+
+eval:
+  dialects: ["قطري", "إماراتي", "سعودي", "كويتي"]

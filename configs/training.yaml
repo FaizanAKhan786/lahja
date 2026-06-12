@@ -1,0 +1,32 @@
+# Full training run — single 24 GB GPU (e.g. RTX 3090/4090) for an 8B base.
+seed: 42
+
+model:
+  base: Qwen/Qwen2.5-7B-Instruct   # strong Arabic coverage; swap for any HF causal LM
+  load_in_4bit: true
+
+data:
+  train_file: data/gulf_instructions.jsonl   # your prepared dataset (see README)
+  prepared_dir: outputs/prepared
+  eval_fraction: 0.05
+  require_arabic: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+
+train:
+  epochs: 2
+  batch_size: 2
+  grad_accum: 8
+  lr: 2e-4
+  max_seq_len: 1024
+  eval_steps: 100
+  save_steps: 200
+  output_dir: outputs/adapters
+  merged_dir: outputs/merged
+  report_to: none   # set to "mlflow" or "wandb" if available
+
+eval:
+  dialects: ["قطري", "إماراتي", "سعودي", "كويتي"]
