@@ -3,9 +3,9 @@ import os
 
 os.environ["LAHJA_MOCK_MODEL"] = "1"
 
-from fastapi.testclient import TestClient  # noqa: E402
+from fastapi.testclient import TestClient
 
-from lahja.serve.api import app  # noqa: E402
+from lahja.serve.api import app
 
 
 def client() -> TestClient:
