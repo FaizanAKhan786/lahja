@@ -92,7 +92,8 @@ def main() -> None:
     merged_dir = cfg["train"].get("merged_dir", "outputs/merged")
     dialects = cfg.get("eval", {}).get("dialects", ["قطري", "إماراتي", "سعودي", "كويتي"])
 
-    rows = [json.loads(line) for line in open(prepared / "eval.jsonl", encoding="utf-8")]
+    with (prepared / "eval.jsonl").open(encoding="utf-8") as eval_file:
+        rows = [json.loads(line) for line in eval_file]
     texts = [r["messages"][2]["content"] for r in rows]
 
     import torch
