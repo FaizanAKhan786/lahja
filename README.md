@@ -96,4 +96,8 @@ The sample configuration references `Qwen/Qwen2.5-0.5B-Instruct` and will requir
 
 Offline inference is possible **after** model files and dependencies are provisioned. The included small sample dataset is for testing the pipeline, not proof of a domain-specialized production model.
 
+## Verification & benchmark protocol
+
+[Read the reproducible test and evaluation guide](docs/QUALITY.md). It documents the current automated checks, commands for model-dependent evaluations, and what results **do not** establish.
+
 [Issues](https://github.com/FaizanAKhan786/lahja/issues) · [GitHub profile](https://github.com/FaizanAKhan786)
