@@ -45,11 +45,13 @@ def main() -> None:
     for name, split in (("train", train_set), ("eval", eval_set)):
         path = out_dir / f"{name}.jsonl"
         with open(path, "w", encoding="utf-8") as f:
-            for ex in split:
-                f.write(json.dumps({
-                    "messages": to_chat_messages(ex),
-                    "dialect": ex.dialect,
-                }, ensure_ascii=False) + "\n")
+            f.writelines(
+                json.dumps(
+                    {"messages": to_chat_messages(ex), "dialect": ex.dialect},
+                    ensure_ascii=False,
+                ) + "\n"
+                for ex in split
+            )
         log.info("Wrote %d examples → %s", len(split), path)
 
 
