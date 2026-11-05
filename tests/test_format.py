@@ -1,7 +1,12 @@
 """Unit tests for the pure-python data formatting core."""
 from lahja.data.format import (
-    Example, dedup_key, is_arabic, normalize, prepare_examples,
-    to_chat_messages, to_text,
+    Example,
+    dedup_key,
+    is_arabic,
+    normalize,
+    prepare_examples,
+    to_chat_messages,
+    to_text,
 )
 
 
