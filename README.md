@@ -1,4 +1,7 @@
 <div align="center">
+  <a href="https://github.com/FaizanAKhan786/lahja"><img src="docs/project-showcase.svg" alt="lahja conceptual AI system architecture artwork" width="100%" /></a>
+  <br />
+
 
 # Lahja | لهجة
 ### Gulf Arabic dialect LLM engineering
