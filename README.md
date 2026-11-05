@@ -1,133 +1,96 @@
-# Lahja (لهجة) — Gulf Arabic Dialect LLM Pipeline
+<div align="center">
 
-[![CI](https://github.com/faaizan786/lahja/actions/workflows/ci.yml/badge.svg)](https://github.com/faaizan786/lahja/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+# Lahja | لهجة
+### Gulf Arabic dialect LLM engineering
 
-**End-to-end pipeline for adapting open LLMs to Gulf Arabic dialects** (Qatari, Emirati, Saudi, Kuwaiti):
-QLoRA fine-tuning → evaluation harness → INT4/GGUF quantization → production FastAPI serving with streaming.
+**Data preparation → QLoRA fine-tuning → Evaluation → Quantization → API serving**
 
-Built to run **fully offline** after model download — no external API calls — reflecting real-world
-air-gapped enterprise and government deployment constraints.
+[![CI](https://github.com/FaizanAKhan786/lahja/actions/workflows/ci.yml/badge.svg)](https://github.com/FaizanAKhan786/lahja/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-2563EB)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 
+[Quick start](#quick-start) · [Architecture](#architecture) · [Training](#training-and-evaluation) · [Source](https://github.com/FaizanAKhan786/lahja)
+
+</div>
+
+## Why Lahja?
+
+Standard Arabic and Gulf dialects differ in vocabulary, morphology and conversational style. Lahja provides a reproducible **model adaptation pipeline** targeting dialects used in Qatar, the UAE, Saudi Arabia and Kuwait. The project ships example data and separate configurations for smoke tests and more demanding training runs.
+
+| Component | In this repository |
+| --- | --- |
+| Data | Instruction dataset preparation and filtering |
+| Training | Transformers, PEFT / LoRA, optional QLoRA 4-bit loading |
+| Evaluation | Dialect metrics, held-out perplexity and optional judge-based checks |
+| Packaging | Adapter merge, quantization export and GGUF helper script |
+| Inference | FastAPI `/generate`, `/health`, `/info`; optional streaming |
+| Development | Mock backend, pytest and CI |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    D["Dialect JSONL"] --> P["Clean + prepare"]
+    P --> T["PEFT / QLoRA training"]
+    T --> E["Held-out evaluation"]
+    E --> M["Merge adapters"]
+    M --> Q["INT4 / GGUF export"]
+    Q --> S["FastAPI inference"]
+    C["YAML configs"] --> P
+    C --> T
+    C --> E
 ```
- ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
- │  Data Prep    │──▶│ QLoRA Train  │──▶│  Evaluate    │──▶│  Quantize     │
- │ (instruction  │   │ (4-bit base, │   │ (dialect F1, │   │ (merge LoRA → │
- │  formatting,  │   │  PEFT/LoRA   │   │  ppl, judge) │   │  INT4 / GGUF) │
- │  chat template)│  │  adapters)   │   │              │   │               │
- └──────────────┘   └──────────────┘   └──────────────┘   └──────┬───────┘
-                                                                  ▼
-                                                       ┌────────────────────┐
-                                                       │  FastAPI Serving    │
-                                                       │  /generate (stream) │
-                                                       │  /health  /info     │
-                                                       └────────────────────┘
-```
 
-## Why this exists
+## Quick start
 
-Modern Standard Arabic (MSA) models underperform badly on Gulf dialects — the Arabic actually
-spoken and typed in Qatar, the UAE, Saudi Arabia, and Kuwait. This repo is a reproducible,
-config-driven pipeline for closing that gap with parameter-efficient fine-tuning on a single GPU.
-
-## Features
-
-- **QLoRA fine-tuning** — 4-bit NF4 base model + LoRA adapters via PEFT; trains an 8B model on a single 24 GB GPU
-- **Config-driven** — every run defined by a YAML config; no code edits to change model, data, or hyperparameters
-- **Evaluation harness** — dialect identification accuracy/macro-F1, held-out perplexity, and optional LLM-as-judge scoring
-- **Quantization** — LoRA merge + INT4 export, with a GGUF conversion script for llama.cpp/Ollama deployment
-- **Production serving** — FastAPI with token streaming (SSE), request validation, health/readiness probes, and a mock-model mode for CI
-- **MLOps hygiene** — unit tests, GitHub Actions CI, Dockerfile, structured logging, reproducible seeds
-
-## Quickstart
+**Python 3.10+** is required. The smallest path is a deterministic mock server, useful for checking request/response behavior without a GPU or model download.
 
 ```bash
-git clone https://github.com/faaizan786/lahja && cd lahja
+git clone https://github.com/FaizanAKhan786/lahja.git
+cd lahja
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+LAHJA_MOCK_MODEL=1 uvicorn lahja.serve.api:app --port 8000
+```
 
-# 1. Smoke-run the full pipeline on the bundled sample data (CPU-friendly, tiny model)
+Try the local API in another terminal:
+
+```bash
+curl -X POST http://localhost:8000/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"شلونك؟","max_new_tokens":64}'
+```
+
+This mock **does not generate learned dialect responses**. For real inference, set `LAHJA_MODEL_DIR` to a merged Transformers model or `LAHJA_GGUF_PATH` to a compatible local GGUF file and install the appropriate extras.
+
+## Training and evaluation
+
+```bash
+pip install -e ".[train,dev]"
 python -m lahja.data.prepare --config configs/sample.yaml
 python -m lahja.train.qlora --config configs/sample.yaml --max-steps 5
-
-# 2. Serve (mock mode — no GPU needed, used by CI)
-LAHJA_MOCK_MODEL=1 uvicorn lahja.serve.api:app --port 8000
-curl -X POST localhost:8000/generate -H 'Content-Type: application/json' \
-     -d '{"prompt": "شلونك؟ وش أخبارك", "max_new_tokens": 64}'
+python -m lahja.eval.evaluate --config configs/sample.yaml
+pytest -q
 ```
 
-### Full training run (GPU)
+The sample configuration references `Qwen/Qwen2.5-0.5B-Instruct` and will require model download unless cached. Larger QLoRA runs require substantially more GPU memory. Use [`configs/training.yaml`](configs/training.yaml) for non-sample experiments and [`scripts/quantize_gguf.sh`](scripts/quantize_gguf.sh) for GGUF conversion.
 
-```bash
-# Edit configs/training.yaml: base model, dataset, LoRA rank, etc.
-python -m lahja.data.prepare --config configs/training.yaml
-python -m lahja.train.qlora   --config configs/training.yaml
-python -m lahja.train.merge   --config configs/training.yaml   # merge adapters
-python -m lahja.eval.evaluate --config configs/training.yaml   # metrics → reports/
-bash scripts/quantize_gguf.sh outputs/merged                    # GGUF for llama.cpp/Ollama
-uvicorn lahja.serve.api:app --port 8000                         # serve merged model
-```
+**Model scores are not published here as verified benchmark results.** Judge quality with your own held-out test set before treating the model as suitable for real-world deployment.
 
-## Data
+## Structure
 
-The repo ships with a small **bundled sample dataset** (`data/sample/`) so the pipeline runs
-end-to-end out of the box. For real training, plug in any instruction-format JSONL
-(`{"instruction": ..., "input": ..., "output": ..., "dialect": ...}`) — public options include:
+| Path | Purpose |
+| --- | --- |
+| [`src/lahja/data/`](src/lahja/data/) | Data cleaning and formatting |
+| [`src/lahja/train/`](src/lahja/train/) | Fine-tuning and adapter utilities |
+| [`src/lahja/eval/`](src/lahja/eval/) | Evaluation |
+| [`src/lahja/serve/`](src/lahja/serve/) | API and inference backends |
+| [`configs/`](configs/) | Sample, training and serving settings |
+| [`tests/`](tests/) | Automated checks |
 
-| Dataset | Dialects | Access |
-|---|---|---|
-| NADI shared task | 18 country-level dialects | Registration (free, academic) |
-| MADAR corpus | 25 city-level dialects | Registration (free, academic) |
-| QADI (QCRI) | 18 country-level dialects | Public (Twitter IDs) |
+## Design boundaries
 
-Point `data.train_file` in your config at the prepared JSONL. The prep module handles
-chat-template formatting, deduplication, and train/eval splitting.
+Offline inference is possible **after** model files and dependencies are provisioned. The included small sample dataset is for testing the pipeline, not proof of a domain-specialized production model.
 
-## Evaluation
-
-`python -m lahja.eval.evaluate` produces a JSON + Markdown report:
-
-- **Dialect ID** — accuracy and macro-F1 on a held-out labelled split
-- **Perplexity** — on held-out dialect text, base vs fine-tuned
-- **LLM-as-judge** (optional) — pairwise fluency/dialect-fidelity wins vs the base model, judged by a local model via Ollama (keeps the loop fully offline)
-
-Results land in `reports/` so every run is auditable.
-
-## Serving API
-
-| Endpoint | Description |
-|---|---|
-| `POST /generate` | Generate (optionally stream via `"stream": true` — SSE) |
-| `GET /health` | Liveness probe |
-| `GET /info` | Model, adapter, quantization, and build metadata |
-
-Backends: merged HF model (GPU), GGUF via llama-cpp-python (CPU/GPU), or mock (CI).
-Selected automatically from config/env — see `configs/serving.yaml`.
-
-## Docker
-
-```bash
-docker build -t lahja .
-docker run -p 8000:8000 -e LAHJA_MOCK_MODEL=1 lahja          # mock
-docker run --gpus all -p 8000:8000 -v ./outputs:/models lahja # real model
-```
-
-## Project layout
-
-```
-src/lahja/
-  data/prepare.py     # JSONL → formatted train/eval splits
-  data/format.py      # chat-template & instruction formatting (pure python, unit-tested)
-  train/qlora.py      # 4-bit QLoRA training loop (PEFT + TRL)
-  train/merge.py      # adapter merge → standalone model
-  eval/evaluate.py    # dialect F1, perplexity, LLM-as-judge
-  serve/api.py        # FastAPI app (stream, health, mock mode)
-  serve/schemas.py    # pydantic request/response models
-configs/              # YAML run configs (sample + full training + serving)
-scripts/              # train / quantize / serve helpers
-tests/                # unit tests (run without GPU)
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+[Issues](https://github.com/FaizanAKhan786/lahja/issues) · [GitHub profile](https://github.com/FaizanAKhan786)
