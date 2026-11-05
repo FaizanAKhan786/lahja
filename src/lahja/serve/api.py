@@ -14,8 +14,8 @@ import json
 import logging
 import os
 import time
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Iterator
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
@@ -60,9 +60,10 @@ def _init_gguf(path: str) -> None:
 
 
 def _init_hf(model_dir: str) -> None:
+    from threading import Thread
+
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
-    from threading import Thread
 
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
     model = AutoModelForCausalLM.from_pretrained(
